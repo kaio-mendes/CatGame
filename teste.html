@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jogo com Setas do Teclado</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: rgb(0, 0, 65);
+        color: white;
+        text-align: center;
+      }
+      canvas {
+        background-color: #f0f0f0;
+        border: 2px solid black;
+        display: block;
+        margin: 20px auto;
+      }
+      img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 2;
+      }
+      .mostrar {
+        background-color: orange;
+        height: 100%;
+        width: 100%;
+        z-index: 100;
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="jogoCanvas"></canvas>
+    <h1>Pontos: <span id="pontos">0</span></h1>
+    <audio id="player1" src="point-smooth-beep-230573.mp3"></audio>
+    <div id="scary" class="hidden">
+      <img
+        src="https://media.tenor.com/a5ipbSgkT0gAAAAM/cat-cat-reaction-meme.gif"
+        alt="Imagem assustadora"
+      />
+      <audio id="player" src="scary_cat.mp3"></audio>
+    </div>
+
+    <div id="reload" class="hidden">
+      <h1>Você perdeu!</h1>
+      <h1>Pontos: <span id="pontosFinal">0</span></h1>
+      <button onclick="reiniciarJogo()">Reiniciar</button>
+    </div>
+
+    <script>
+      // Configuração do canvas
+      const canvas = document.getElementById("jogoCanvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = 800;
+      canvas.height = 600;
+
+      // Áudio assustador
+      const player = document.getElementById("player");
+      const player1 = document.getElementById("player1");
+
+      // Variáveis de imagens
+      const jogadorImg = new Image();
+      jogadorImg.src = "gato.png";
+
+      const InimigoImg = new Image();
+      InimigoImg.src = "mouse.png";
+
+      const pontoImg = new Image();
+      pontoImg.src = "peixe.png";
+
+      const superCat = new Image();
+      superCat.src = "superCat.png";
+
+      let pontos_cont = 0; // Contador de pontos
+      let playerTocou = false; // Flag para som assustador
+      let pointSound = false; // Flag para ponto
+
+      // Objeto do jogador
+      const jogador = {
+        x: canvas.width / 2 - 25,
+        y: canvas.height - 160,
+        largura: 100,
+        altura: 160,
+        velocidade: 3,
+      };
+
+      const superCatPlayer = {
+        x: Math.random() * (canvas.width - 30),
+        y: 0,
+        largura: 70,
+        altura: 70,
+        velocidade: 2,
+      };
+
+      // Objeto do inimigo
+      const obstaculo = {
+        x: Math.random() * (canvas.width - 30),
+        y: 0,
+        largura: 60,
+        altura: 60,
+        velocidade: 2,
+      };
+
+      // Objeto do ponto
+      const pontos = {
+        x: Math.random() * (canvas.width - 30),
+        y: 0,
+        largura: 50,
+        altura: 50,
+        velocidade: 2,
+      };
+
+      // Função para desenhar o jogador
+      function desenharJogador() {
+        ctx.drawImage(
+          jogadorImg,
+          jogador.x,
+          jogador.y,
+          jogador.largura,
+          jogador.altura
+        );
+      }
+
+      function desenharSuperCat() {
+        ctx.drawImage(
+          superCat,
+          superCatPlayer.x,
+          superCatPlayer.y,
+          superCatPlayer.largura,
+          superCatPlayer.altura
+        );
+      }
+
+      // Função para desenhar o inimigo
+      function desenharObstaculo() {
+        ctx.drawImage(
+          InimigoImg,
+          obstaculo.x,
+          obstaculo.y,
+          obstaculo.largura,
+          obstaculo.altura
+        );
+      }
+
+      // Função para desenhar o ponto
+      function desenharPonto() {
+        ctx.drawImage(
+          pontoImg,
+          pontos.x,
+          pontos.y,
+          pontos.largura,
+          pontos.altura
+        );
+      }
+
+      // Atualiza os obstáculos e pontos
+      function atualizarObjetos() {
+        obstaculo.y += obstaculo.velocidade;
+        pontos.y += pontos.velocidade;
+        superCatPlayer.y += superCatPlayer.velocidade;
+
+        // Reinicia o obstáculo ao atingir a base
+        if (obstaculo.y > canvas.height) {
+          obstaculo.y = 0;
+          obstaculo.x = Math.random() * (canvas.width - obstaculo.largura);
+          obstaculo.velocidade += 0.5; // Aumenta a velocidade do inimigo
+          jogador.velocidade += 1; // Aumenta a velocidade do jogador
+        }
+
+        // Reinicia a posição do ponto ao atingir a base
+        if (pontos.y > canvas.height) {
+          pontos.y = 0;
+          pontos.x = Math.random() * (canvas.width - pontos.largura);
+        }
+
+        if (superCatPlayer.y > canvas.height) {
+          superCatPlayer.y = 0;
+          superCatPlayer.x =
+            Math.random() * (canvas.width - superCatPlayer.largura);
+        }
+        // Se atingir 7 pontos, exibe a imagem e toca o som assustador
+        if (pontos_cont === 7 && !playerTocou) {
+          document
+            .querySelector("#scary")
+            .classList.replace("hidden", "mostrar");
+          player.play();
+          playerTocou = true;
+        }
+      }
+
+      // Verifica colisão entre jogador e obstáculos
+      function verificarColisao() {
+        return (
+          jogador.x < obstaculo.x + obstaculo.largura &&
+          jogador.x + jogador.largura > obstaculo.x &&
+          jogador.y < obstaculo.y + obstaculo.altura &&
+          jogador.y + jogador.altura > obstaculo.y
+        );
+      }
+
+      // Verifica colisão entre jogador e pontos
+      function verificarColisaoPonto() {
+        if (
+          jogador.x < pontos.x + pontos.largura &&
+          jogador.x + jogador.largura > pontos.x &&
+          jogador.y < pontos.y + pontos.altura &&
+          jogador.y + jogador.altura > pontos.y
+        ) {
+          pontos_cont++;
+          document.getElementById("pontos").textContent = pontos_cont;
+          pontos.y = 0;
+          pontos.x = Math.random() * (canvas.width - pontos.largura);
+          player1.play();
+          pointSound = true;
+        }
+      }
+
+      function verificarColisaoSuper() {
+        if (
+          jogador.x < superCatPlayer.x + superCatPlayer.largura &&
+          jogador.x + jogador.largura > superCatPlayer.x &&
+          jogador.y < superCatPlayer.y + superCatPlayer.altura &&
+          jogador.y + jogador.altura > superCatPlayer.y
+        ) {
+          powerPuff(); // Função chamada quando ocorre a colisão
+        }
+      }
+
+      // Mover o jogador com as setas
+      function moverJogador(e) {
+        if (e.key === "ArrowLeft" && jogador.x > 0) {
+          jogador.x -= jogador.velocidade;
+        } else if (
+          e.key === "ArrowRight" &&
+          jogador.x + jogador.largura < canvas.width
+        ) {
+          jogador.x += jogador.velocidade;
+        }
+      }
+      function powerPuff() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        desenharJogador();
+        desenharObstaculo();
+        desenharPonto();
+        atualizarObjetos();
+        verificarColisaoPonto();
+        desenharSuperCat();
+        verificarColisaoSuper();
+      }
+      // Atualiza o jogo
+      function atualizarJogo() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        desenharJogador();
+        desenharObstaculo();
+        desenharPonto();
+        atualizarObjetos();
+        verificarColisaoPonto();
+        desenharSuperCat();
+        verificarColisaoSuper();
+
+        if (verificarColisao()) {
+          document.getElementById("pontosFinal").textContent = pontos_cont;
+          document
+            .querySelector("#reload")
+            .classList.replace("hidden", "mostrar");
+          return;
+        }
+
+        requestAnimationFrame(atualizarJogo);
+      }
+
+      window.addEventListener("keydown", moverJogador);
+      function reiniciarJogo() {
+        window.location.reload();
+      }
+
+      atualizarJogo();
+    </script>
+  </body>
+</html>
